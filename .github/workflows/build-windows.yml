@@ -1,0 +1,88 @@
+name: Mixxx Waveform ZoomOut - Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-windows.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-win64:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: Checkout customization scripts
+        uses: actions/checkout@v4
+        with:
+          path: zoomkit
+
+      - name: Checkout pinned official Mixxx 2.6 source
+        uses: actions/checkout@v4
+        with:
+          repository: mixxxdj/mixxx
+          ref: 4009dc0d62c281a944bebc5f4fb81d189655d93e
+          fetch-depth: 0
+          path: mixxx
+
+      - name: Apply guarded waveform zoom-out patch
+        shell: pwsh
+        run: python zoomkit/scripts/patch_zoom.py mixxx
+
+      - name: Install CMake 3.30
+        uses: jwlawson/actions-setup-cmake@v2.2
+        with:
+          cmake-version: '3.30.x'
+
+      - name: Activate Visual Studio C++ toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Prepare official Mixxx Windows build environment
+        shell: cmd
+        working-directory: mixxx
+        env:
+          BUILDENV_BASEPATH: 'C:\buildenv'
+          BUILDENV_RELEASE: 'TRUE'
+        run: tools\windows_buildenv.bat setup
+
+      - name: Configure Windows x64 build
+        shell: pwsh
+        run: >-
+          cmake -S mixxx -B mixxx/build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DQT6=ON -DQML=ON -DBULK=ON -DHSS1394=ON
+          -DLOCALECOMPARE=ON -DMAD=ON -DMEDIAFOUNDATION=ON
+          -DMODPLUG=ON -DWAVPACK=ON -DVCPKG_TARGET_TRIPLET=x64-windows-release
+          -DWARNINGS_FATAL=ON -DDEBUG_ASSERTIONS_FATAL=OFF
+          -DBATTERY=ON -DBROADCAST=ON -DDOWNLOAD_MANUAL=ON
+          -DHID=ON -DKEYFINDER=ON -DLILV=ON -DOPUS=ON
+          -DQTKEYCHAIN=ON -DVINYLCONTROL=ON
+
+      - name: Compile Mixxx
+        shell: pwsh
+        run: cmake --build mixxx/build --config RelWithDebInfo --parallel 4
+
+      - name: Install WiX Toolset for MSI installer
+        shell: pwsh
+        run: |
+          dotnet.exe tool install --global wix --version 6.0.2
+          wix extension add --global WixToolset.UI.wixext/6.0.2
+
+      - name: Create unsigned Windows installer
+        shell: pwsh
+        working-directory: mixxx/build
+        run: cpack -G WIX -V
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-waveform-zoomout-windows-x64-unsigned
+          path: mixxx/build/*.msi
+          if-no-files-found: error
+          retention-days: 14
