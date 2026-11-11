@@ -1,0 +1,86 @@
+name: Mixxx 2.5.6 Stable ZoomOut - Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-windows-stable-2_5_6.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-stable-win64:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: Checkout ZoomOut source patches
+        uses: actions/checkout@v4
+        with:
+          path: zoomkit
+
+      - name: Checkout pinned official Mixxx 2.5.6 stable release
+        uses: actions/checkout@v4
+        with:
+          repository: mixxxdj/mixxx
+          ref: 3ebac449e7e5fe2a0186596657696e87ce8b0e56
+          fetch-depth: 0
+          path: mixxx
+
+      - name: Apply guarded stable-version zoom-out patch
+        shell: pwsh
+        run: python zoomkit/scripts/patch_zoom_2_5_6.py mixxx
+
+      - name: Install CMake 3.30
+        uses: jwlawson/actions-setup-cmake@v2.2
+        with:
+          cmake-version: '3.30.x'
+
+      - name: Activate Visual Studio C++ toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Prepare official Mixxx 2.5 Windows build environment
+        shell: cmd
+        working-directory: mixxx
+        env:
+          BUILDENV_BASEPATH: 'C:\buildenv'
+          BUILDENV_RELEASE: 'TRUE'
+        run: tools\windows_buildenv.bat setup
+
+      - name: Configure Mixxx 2.5.6 Windows x64
+        shell: pwsh
+        run: >-
+          cmake -S mixxx -B mixxx/build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DQT6=ON -DBULK=ON -DFFMPEG=OFF
+          -DHSS1394=ON -DLOCALECOMPARE=ON -DMAD=ON
+          -DMEDIAFOUNDATION=ON -DMODPLUG=ON -DWAVPACK=ON
+          -DVCPKG_TARGET_TRIPLET=x64-windows-release
+          -DWARNINGS_FATAL=ON -DDEBUG_ASSERTIONS_FATAL=OFF
+
+      - name: Compile Mixxx 2.5.6 stable ZoomOut
+        shell: pwsh
+        run: cmake --build mixxx/build --config RelWithDebInfo --parallel 4
+
+      - name: Install WiX Toolset for unsigned MSI
+        shell: pwsh
+        run: |
+          dotnet.exe tool install --global wix --version 6.0.2
+          wix extension add --global WixToolset.UI.wixext/6.0.2
+
+      - name: Package unsigned Windows x64 installer
+        shell: pwsh
+        working-directory: mixxx/build
+        run: cpack -G WIX -V
+
+      - name: Upload stable-version installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-2.5.6-stable-waveform-zoomout-win64-unsigned
+          path: mixxx/build/*.msi
+          if-no-files-found: error
+          retention-days: 14
