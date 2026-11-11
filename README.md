@@ -1,6 +1,6 @@
 # Mixxx Waveform ZoomOut
 
-An **experimental, unofficial Mixxx 2.6 build** with a much larger waveform zoom-out range.
+Unofficial, experimental Mixxx builds with a much larger waveform zoom-out range, offered in **two separate versions**: the official **2.5.6 stable** release and **2.6 beta**.
 
 The project uses [Mixxx's official source code](https://github.com/mixxxdj/mixxx/tree/2.6) and produces an **unsigned Windows x64 installer** using GitHub Actions. No local development tools are required.
 
@@ -12,15 +12,24 @@ The project uses [Mixxx's official source code](https://github.com/mixxxdj/mixxx
 - No changes to the audio engine, track analysis, library/database, cues, playlists, or skins.
 - Suitable for testing alongside the custom **LateNight Full Height v6** vertical-waveform skin.
 
-The upstream Mixxx 2.6 source revision is pinned for reproducible builds.
+Both upstream source revisions are pinned to exact commits for reproducible builds.
+
+## Choose a version
+
+| Version | Base | Workflow | Installer artifact |
+| --- | --- | --- | --- |
+| **2.5.6 Stable ZoomOut** | Mixxx 2.5.6 official release | `build-windows-stable-2_5_6.yml` | `mixxx-2.5.6-stable-waveform-zoomout-win64-unsigned` |
+| **2.6 Beta ZoomOut** | Mixxx 2.6 beta branch | `build-windows.yml` | `mixxx-waveform-zoomout-windows-x64-unsigned` |
+
+The stable-based build uses its own source patch at `scripts/patch_zoom_2_5_6.py`; the beta build uses `scripts/patch_zoom.py`. Neither build changes or replaces the source of the other.
 
 ## Build Windows installer
 
 1. Open the [Actions tab](https://github.com/mayuta212/Mixxx-Waveform-ZoomOut/actions).
 2. If prompted by GitHub, enable workflows for this repository.
-3. Select **Mixxx Waveform ZoomOut - Windows x64**.
+3. Select **Mixxx 2.5.6 Stable ZoomOut - Windows x64** or **Mixxx Waveform ZoomOut - Windows x64** (2.6).
 4. The first build is configured to run once automatically when the workflow file is added. To rebuild later, choose **Run workflow**.
-5. Open the completed run and download the installer from **Artifacts** at the bottom of the page: `mixxx-waveform-zoomout-windows-x64-unsigned`.
+5. Open the completed run and download the appropriate ZIP from **Artifacts** at the bottom of the page, using the artifact names in the table above.
 6. Extract the artifact ZIP to access the `.msi` installer.
 
 GitHub-hosted runners, not your computer, compile Mixxx. The first build may be slow because the Mixxx dependencies are large. If it fails, inspect the **Build** run logs before retrying.
@@ -36,7 +45,7 @@ GitHub-hosted runners, not your computer, compile Mixxx. The first build may be 
 
 ## Source changes
 
-The script `scripts/patch_zoom.py` applies three exact-match, guarded changes to Mixxx's source:
+The scripts `scripts/patch_zoom.py` (2.6) and `scripts/patch_zoom_2_5_6.py` (2.5.6) apply three exact-match, guarded changes to their corresponding Mixxx sources:
 
 1. `src/waveform/renderers/waveformwidgetrenderer.cpp`: raise zoom limit.
 2. `src/preferences/dialog/dlgprefwaveform.cpp`: keep default zoom dropdown compact.
